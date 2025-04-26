@@ -1,2 +1,4 @@
 __pycache__/app.cpython-313.pyc
 .DS_Store
+*.csv
+.env
