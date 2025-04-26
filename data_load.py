@@ -1,34 +1,24 @@
 import pandas as pd
-from sqlalchemy import create_engine, text
-import urllib
 from dotenv import load_dotenv
 import os
+import pyodbc
+from sqlalchemy import text, create_engine
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Get credentials from environment variables
-db_servername = os.getenv("DB_SERVERNAME")
-db_name = os.getenv("DB_NAME")
-db_port = os.getenv("DB_PORT")
-db_username = os.getenv("DB_USERNAME")
-db_password = os.getenv("DB_PASSWORD")
+connection_string = os.environ["AZURE_SQL_CONNECTIONSTRING"]
 
-# Connection string
-conn_str = (
-    f"mssql+pyodbc://{db_username}:{db_password}"
-    f"@{db_servername}.database.windows.net:{db_port}/{db_name}"
-    "?driver=ODBC+Driver+18+for+SQL+Server"
-)
+def get_conn():
+    conn = pyodbc.connect(connection_string)
+    return conn
 
-# Create engine
-engine = create_engine(conn_str)
-
-
-engine = create_engine(conn_str)
+# Create SQLAlchemy engine using the connection string
+engine = create_engine(f'db+pyodbc://{connection_string}')
 
 # Drop old tables first to avoid duplication
-with engine.connect() as conn:
+with get_conn() as conn:
     conn.execute(text("DROP TABLE IF EXISTS households"))
     conn.execute(text("DROP TABLE IF EXISTS products"))
     conn.execute(text("DROP TABLE IF EXISTS transactions"))
@@ -42,9 +32,8 @@ print("Uploaded households ✅")
 
 # Upload products with progress tracking
 products_file = "400_products.csv"
-products_total_rows = sum(1 for _ in open(products_file)) - 1  # minus 1 for header
+products_total_rows = sum(1 for _ in open(products_file)) - 1 # minus 1 for header
 chunksize_products = 1000
-
 print("Uploading products...")
 uploaded_products = 0
 for chunk in pd.read_csv(products_file, chunksize=chunksize_products):
@@ -57,9 +46,8 @@ print("Uploaded all products ✅")
 
 # Upload transactions with progress tracking
 transactions_file = "400_transactions.csv"
-transactions_total_rows = sum(1 for _ in open(transactions_file)) - 1  # minus 1 for header
+transactions_total_rows = sum(1 for _ in open(transactions_file)) - 1 # minus 1 for header
 chunksize_transactions = 5000
-
 print("Uploading transactions...")
 uploaded_transactions = 0
 for chunk in pd.read_csv(transactions_file, chunksize=chunksize_transactions):

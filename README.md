@@ -1,10 +1,7 @@
 # Final-Project Quickstart
-// for mac specifically
-```
-brew install unixodbc
-```
+Install ODBC 18 for local dev
+https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server?view=sql-server-ver16&redirectedfrom=MSDN
 
-For everyone
 `pip install -r requirements.txt`
 
-find some way to run application.py
+run application.py (there's so many ways to do this, just do it your fav python running way)

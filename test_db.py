@@ -1,6 +1,7 @@
 import os
 from sqlalchemy import create_engine, text
 
+# dw, these have been reset, I'm just too burnt out to replace all these gadakihglaijhlodji
 # Replace with your actual username and password
 username = "cloud-is-cool"   # your SQL server username
 #password = "MyPassword123!"  # your SQL server password
