@@ -1,0 +1,22 @@
+<form method="POST">
+    <label>Enter Household Number:</label>
+    <input name="hshd" type="text" required>
+    <button type="submit">Search</button>
+</form>
+
+{% if rows %}
+    <table border="1">
+        <tr>
+            {% for col in rows[0].keys() %}
+            <th>{{ col }}</th>
+            {% endfor %}
+        </tr>
+        {% for row in rows %}
+        <tr>
+            {% for cell in row %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+{% endif %}
