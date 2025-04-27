@@ -1,7 +1,7 @@
 <table border="1">
     <tr>
-        {% for col in rows[0].keys() %}
-        <th>{{ col }}</th>
+        {% for column in columns %}
+        <th>{{ column }}</th>
         {% endfor %}
     </tr>
     {% for row in rows %}

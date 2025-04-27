@@ -187,16 +187,19 @@ def search():
 @require_cookie
 def demographics():
     query = text("""
-        SELECT h.HH_SIZE, h.CHILDREN, h.INCOME_RANGE, AVG(t.SPEND) as avg_spend
-        FROM households h
-        JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
-        GROUP BY h.HH_SIZE, h.CHILDREN, h.INCOME_RANGE
-        ORDER BY h.HH_SIZE, h.CHILDREN, h.INCOME_RANGE
+    SELECT h.HH_SIZE, h.CHILDREN, h.INCOME_RANGE, AVG(t.SPEND) as avg_spend
+    FROM households h
+    JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
+    GROUP BY h.HH_SIZE, h.CHILDREN, h.INCOME_RANGE
+    ORDER BY h.HH_SIZE, h.CHILDREN, h.INCOME_RANGE
     """)
     
-    results = db.session.execute(query)
-    return render_template("table.html", rows=results.fetchall(), 
-                         columns=[desc[0] for desc in results.cursor.description])
+    with db.session.connection() as conn:
+        result = conn.execute(query)
+        columns = [desc[0] for desc in result.cursor.description]
+        rows = result.fetchall()
+        
+    return render_template("table.html", rows=rows, columns=columns)
 
 @app.route("/spending_trends")
 @require_cookie
