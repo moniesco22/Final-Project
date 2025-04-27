@@ -70,7 +70,7 @@ def register():
         email = request.form['email']
         
         # Create response object
-        resp = make_response(f"<h1>Registered: {username} ({email})</h1>")
+        resp = make_response(redirect(url_for('index')))
         
         # Set cookies with reasonable expiration time (30 days)
         resp.set_cookie('username', username, max_age=30*24*60*60)
@@ -78,11 +78,6 @@ def register():
         
         return resp
     return render_template("login.html")
-
-@app.route("/")
-@require_cookie
-def home():
-    return "<h1>Welcome to CLV App!</h1><p>Go to /sample/10 or /search</p>"
 
 @app.route("/sample/<int:hshd_num>")
 @require_cookie
@@ -101,7 +96,7 @@ def sample(hshd_num):
     columns = [desc[0] for desc in results.cursor.description]
     return render_template("table.html", rows=results.fetchall(), columns=columns)
 
-@app.route("/dashboard")
+@app.route("/")
 @require_cookie
 def dashboard():
     return render_template("dashboard.html")
