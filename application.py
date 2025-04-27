@@ -4,8 +4,11 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
-from sqlalchemy import text
+from sqlalchemy import text, create_engine
+from werkzeug.utils import secure_filename
 import urllib
+
+
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -19,6 +22,13 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'mssql+pyodbc:///?odbc_connect={params}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+#Configure upload settings 
+ALLOWED_EXTENSIONS = {'csv'}
+UPLOAD_FOLDER = 'uploads'
+app.config['UPLOAD_FOLDERS'] = UPLOAD_FOLDER
+#Get credentials from environment vars
+
 
 # Define models
 class Household(db.Model):
@@ -179,6 +189,44 @@ def spending_trends():
     results = db.session.execute(query)
     return render_template("table.html", rows=results.fetchall(),
                          columns=[desc[0] for desc in results.cursor.description])
+
+@app.route("/upload_data", methods=["GET", "POST"])
+def upload_data():
+    if request.method == "POST":
+        file = request.files.get('file')
+        data_type = request.form.get('data_type')  # New households / transactions / products
+        
+        if file and data_type:
+            try:
+                # Read the uploaded CSV into a DataFrame
+                df = pd.read_csv(file)
+                df.columns = df.columns.str.strip()
+                
+                # Drop existing table and replace it
+                if data_type == "households":
+                    db.session.execute(text("DROP TABLE IF EXISTS households"))
+                    db.session.commit()
+                    df.to_sql("households", db.engine, if_exists="replace", index=False)
+                    
+                elif data_type == "products":
+                    db.session.execute(text("DROP TABLE IF EXISTS products"))
+                    db.session.commit()
+                    df.to_sql("products", db.engine, if_exists="replace", index=False)
+                    
+                elif data_type == "transactions":
+                    db.session.execute(text("DROP TABLE IF EXISTS transactions"))
+                    db.session.commit()
+                    df.to_sql("transactions", db.engine, if_exists="replace", index=False)
+                    
+                db.session.commit()
+                return render_template("upload_result.html", success=True, data_type=data_type)
+            except Exception as e:
+                db.session.rollback()
+                return render_template("upload_result.html", success=False, error=str(e))
+        
+        return render_template("upload_result.html", success=False, error="Missing file or data type.")
+    
+    return render_template("upload_data.html")
 
 if __name__ == "__main__":
     app.run(debug=True, use_reloader=True)
