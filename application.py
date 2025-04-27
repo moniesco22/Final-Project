@@ -14,7 +14,7 @@ app = Flask(__name__)
 load_dotenv()
 
 # Configure SQLAlchemy
-params = urllib.parse.quote_plus(os.environ["AZURE_SQL_CONNECTIONSTRING"])
+params = urllib.parse.quote_plus(os.environ["SQLAZURECONNSTR_AZURE_SQL_CONNECTIONSTRING"])
 app.config['SQLALCHEMY_DATABASE_URI'] = f'mssql+pyodbc:///?odbc_connect={params}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
