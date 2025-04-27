@@ -1,7 +1,8 @@
+from flask import Flask, request, make_response, render_template, redirect, url_for
+from functools import wraps
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
 from sqlalchemy import text
@@ -47,11 +48,39 @@ class Transaction(db.Model):
         db.PrimaryKeyConstraint('HSHD_NUM', 'BASKET_NUM', 'PURCHASE_', 'PRODUCT_NUM'),
     )
 
-@app.route("/")
-def home():
-    return "<h1>Welcome to CLV App!</h1><p>Go to /sample/10 or /search</p>"
+# Cookie protection decorator
+def require_cookie(view_func):
+    @wraps(view_func)
+    def decorated_function(*args, **kwargs):
+        if not check_user_cookie():
+            return redirect(url_for('register'))
+        return view_func(*args, **kwargs)
+    return decorated_function
+
+# Cookie checking function
+def check_user_cookie():
+    return 'username' in request.cookies
+
+# Routes
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
+        
+        # Create response object
+        resp = make_response(redirect(url_for('index')))
+        
+        # Set cookies with reasonable expiration time (30 days)
+        resp.set_cookie('username', username, max_age=30*24*60*60)
+        resp.set_cookie('email', email, max_age=30*24*60*60)
+        
+        return resp
+    return render_template("login.html")
 
 @app.route("/sample/<int:hshd_num>")
+@require_cookie
 def sample(hshd_num):
     query = text("""
     SELECT t.HSHD_NUM, t.BASKET_NUM, t.PURCHASE_, t.PRODUCT_NUM, 
@@ -67,17 +96,8 @@ def sample(hshd_num):
     columns = [desc[0] for desc in results.cursor.description]
     return render_template("table.html", rows=results.fetchall(), columns=columns)
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        username = request.form['username']
-        password = request.form['password']
-        email = request.form['email']
-        # Just display it for now (later you can save to database if you want)
-        return f"<h1>Registered: {username} ({email})</h1>"
-    return render_template("login.html")
-
-@app.route("/dashboard")
+@app.route("/")
+@require_cookie
 def dashboard():
     return render_template("dashboard.html")
 
@@ -130,6 +150,7 @@ def reload_data():
         return f"<h1>Reload Failed ❌</h1><p>Error: {str(e)}</p>"
 
 @app.route("/search", methods=["GET", "POST"])
+@require_cookie
 def search():
     results = []
     columns = []
@@ -154,6 +175,7 @@ def search():
     return render_template("search.html")
 
 @app.route("/demographics")
+@require_cookie
 def demographics():
     query = text("""
         SELECT h.HH_SIZE, h.CHILDREN, h.INCOME_RANGE, AVG(t.SPEND) as avg_spend
@@ -168,6 +190,7 @@ def demographics():
                          columns=[desc[0] for desc in results.cursor.description])
 
 @app.route("/spending_trends")
+@require_cookie
 def spending_trends():
     query = text("""
         SELECT YEAR, WEEK_NUM, SUM(SPEND) as total_spend
