@@ -118,28 +118,35 @@
     const visualizationsContainer = document.getElementById("visualizations");
     visualizationsContainer.style.display = "none"; // Hide visualizations until overlay completes
 
+    // dummy loading because I can't figure it out :(
     eventSource.onmessage = (event) => {
       const progress = parseInt(event.data, 10);
-      const stepIndex = Math.floor((progress / 100) * steps.length);
+      const stepIndex = Math.floor((progress / 90) * steps.length);
       loadingText.textContent = `Loading ${steps[stepIndex]}...`;
       progressBar.value = progress;
 
-      if (progress === 100) {
+      if (progress >= 90) {
         eventSource.close();
-        document.getElementById("loading").style.display = "none";
-        visualizationsContainer.style.display = "grid"; // Show visualizations after overlay completes
-
+        loadingText.textContent = `Pulling Data...`;
         // Fetch and render visualizations
-        fetch("/dashboard_data")
-          .then(response => response.json())
-          .then(data => {
-            renderVisualizations(data);
-          })
-          .catch(error => {
-            console.error("Error loading dashboard data:", error);
-          });
       }
     };
+
+    //actual fetch
+    fetch('/dashboard_data', {
+      cache: 'force-cache' // SOS save our server
+    })
+    .then(response => {
+      progressBar.value = 95;
+      loadingText.textContent = `Serializing Data...`;
+      return response.json()
+    })
+    .then(data => {
+      progressBar.value = 100;
+      document.getElementById("loading").style.display = "none";
+      visualizationsContainer.style.display = "grid"; 
+      renderVisualizations(data);
+    });
 
     function renderVisualizations(data) {
       const visualizationIds = [
