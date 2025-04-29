@@ -8,5 +8,222 @@
   <li><a href="/basket_analysis">Basket Analysis & Cross-Selling</a></li>
   <li><a href="/seasonal_trends">Seasonal Sales Trends</a></li>
   <li><a href="/brand_preferences">Brand Preferences</a></li>
-  <li><a href="/upload_data.html">Brand Preferences</a></li>
 </ul>
+
+<div id="loading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); display: flex; justify-content: center; align-items: center; text-align: center; flex-direction: column; z-index: 1000;">
+  <div>
+    <div class="spinner" style="margin: 0 auto 20px auto;"></div>
+    <p id="loading-text">Loading...</p>
+    <progress id="progress-bar" max="100" value="0"></progress>
+  </div>
+</div>
+
+<div id="visualizations" style="display: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px;">
+  <div id="engagement" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Customer Engagement Over Time...
+  </div>
+  <div id="demographics" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Impact of Demographic Factors...
+  </div>
+  <div id="segmentation" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Customer Segmentation...
+  </div>
+  <div id="loyalty" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Loyalty Program Impact...
+  </div>
+  <div id="basket" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Basket Analysis...
+  </div>
+  <div id="seasonal" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Seasonal and Temporal Trends...
+  </div>
+  <div id="brand" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Brand and Product Preference...
+  </div>
+  <div id="clv" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Customer Lifetime Value (CLV)...
+  </div>
+  <div id="churn" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Churn Prediction...
+  </div>
+  <div id="socioeconomic" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Socioeconomic Influence on Shopping...
+  </div>
+  <div id="regional" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Regional Preferences...
+  </div>
+  <div id="demand" style="border: 1px solid #ccc; height: 400px; position: relative;">
+    <div class="vis-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="spinner"></div>
+    </div>
+    Drawing Demand Forecasting...
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const progressBar = document.getElementById("progress-bar");
+    const loadingText = document.getElementById("loading-text");
+    const eventSource = new EventSource("/dashboard_progress");
+
+    const steps = [
+      "Customer Engagement Over Time",
+      "Impact of Demographic Factors",
+      "Customer Segmentation",
+      "Loyalty Program Impact",
+      "Basket Analysis",
+      "Seasonal and Temporal Trends",
+      "Brand and Product Preference",
+      "Customer Lifetime Value (CLV)",
+      "Churn Prediction",
+      "Socioeconomic Influence on Shopping",
+      "Regional Preferences",
+      "Demand Forecasting"
+    ];
+
+    const visualizationsContainer = document.getElementById("visualizations");
+    visualizationsContainer.style.display = "none"; // Hide visualizations until overlay completes
+
+    eventSource.onmessage = (event) => {
+      const progress = parseInt(event.data, 10);
+      const stepIndex = Math.floor((progress / 100) * steps.length);
+      loadingText.textContent = `Loading ${steps[stepIndex]}...`;
+      progressBar.value = progress;
+
+      if (progress === 100) {
+        eventSource.close();
+        document.getElementById("loading").style.display = "none";
+        visualizationsContainer.style.display = "grid"; // Show visualizations after overlay completes
+
+        // Fetch and render visualizations
+        fetch("/dashboard_data")
+          .then(response => response.json())
+          .then(data => {
+            renderVisualizations(data);
+          })
+          .catch(error => {
+            console.error("Error loading dashboard data:", error);
+          });
+      }
+    };
+
+    function renderVisualizations(data) {
+      const visualizationIds = [
+        "engagement", "demographics", "segmentation", "loyalty",
+        "basket", "seasonal", "brand", "clv",
+        "churn", "socioeconomic", "regional", "demand"
+      ];
+
+      visualizationIds.forEach((id) => {
+        const visDiv = document.getElementById(id);
+        if (visDiv) {
+          const spinner = visDiv.querySelector(".vis-spinner");
+          const progressBar = document.createElement("progress");
+          progressBar.max = 100;
+          progressBar.value = 0;
+          progressBar.style.width = "80%";
+          progressBar.style.marginTop = "10px";
+          visDiv.appendChild(progressBar);
+
+          const worker = new Worker("/static/visualizationWorker.js");
+          worker.postMessage({ id, data: data[id] });
+
+          worker.onmessage = (event) => {
+            const { progress, svgContent } = event.data;
+            progressBar.value = progress;
+
+            if (progress === 100) {
+              spinner.remove();
+              progressBar.remove();
+              visDiv.innerHTML = svgContent;
+
+              // Add hover events for the generated SVG
+              const rects = visDiv.querySelectorAll("rect");
+              rects.forEach(rect => {
+                rect.addEventListener("mouseover", (e) => {
+                  const tooltip = document.createElement("div");
+                  tooltip.className = "tooltip";
+                  tooltip.style.position = "absolute";
+                  tooltip.style.background = "#fff";
+                  tooltip.style.border = "1px solid #ccc";
+                  tooltip.style.padding = "5px";
+                  tooltip.style.pointerEvents = "none";
+                  tooltip.style.left = `${e.pageX + 5}px`;
+                  tooltip.style.top = `${e.pageY + 5}px`;
+                  tooltip.innerHTML = `Value: ${rect.getAttribute("data-id")}`;
+                  document.body.appendChild(tooltip);
+                });
+
+                rect.addEventListener("mouseout", () => {
+                  const tooltip = document.querySelector(".tooltip");
+                  if (tooltip) tooltip.remove();
+                });
+              });
+            }
+          };
+        }
+      });
+    }
+  });
+</script>
+
+<style>
+  .spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #000;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .tooltip {
+    font-size: 12px;
+    color: #333;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+</style>

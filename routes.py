@@ -1,8 +1,9 @@
 # Moved routes to a separate module
-from flask import Blueprint, request, make_response, render_template, redirect, url_for
+from flask import Blueprint, request, make_response, render_template, redirect, url_for, jsonify, Response, send_from_directory
 from sqlalchemy import text
 from models import db
 from decorators import require_cookie
+import time
 
 routes = Blueprint('routes', __name__)
 
@@ -47,6 +48,115 @@ def sample(hshd_num):
 @require_cookie
 def dashboard():
     return render_template("dashboard.html")
+
+# Serve static files from the 'Create' directory
+@routes.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(os.path.join(app.root_path, 'Create'), filename)
+
+@routes.route("/dashboard_data")
+@require_cookie
+def dashboard_data():
+    # Combine all queries into one JSON response
+    queries = {
+        "engagement": """
+            SELECT YEAR, WEEK_NUM, SUM(SPEND) as total_spend, COUNT(DISTINCT HSHD_NUM) as unique_households
+            FROM transactions
+            GROUP BY YEAR, WEEK_NUM
+            ORDER BY YEAR, WEEK_NUM
+        """,
+        "demographics": """
+            SELECT h.L, h.AGE_RANGE, AVG(t.SPEND) as avg_spend
+            FROM households h
+            JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
+            GROUP BY h.L, h.AGE_RANGE
+        """,
+        "segmentation": """
+            SELECT h.HSHD_NUM, h.L, h.AGE_RANGE, SUM(t.SPEND) as total_spend
+            FROM households h
+            JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
+            GROUP BY h.HSHD_NUM, h.L, h.AGE_RANGE
+        """,
+        "loyalty": """
+            SELECT h.L, AVG(t.SPEND) as avg_spend, COUNT(t.BASKET_NUM) as purchase_frequency
+            FROM households h
+            JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
+            GROUP BY h.L
+        """,
+        "basket": """
+            SELECT t.BASKET_NUM, STRING_AGG(p.COMMODITY, ', ') as products
+            FROM transactions t
+            JOIN products p ON t.PRODUCT_NUM = p.PRODUCT_NUM
+            GROUP BY t.BASKET_NUM
+        """,
+        "seasonal": """
+            SELECT MONTH(PURCHASE_) as month, SUM(SPEND) as total_spend
+            FROM transactions
+            GROUP BY MONTH(PURCHASE_)
+        """,
+        "brand": """
+            SELECT p.BRAND_TY, AVG(t.SPEND) as avg_spend
+            FROM transactions t
+            JOIN products p ON t.PRODUCT_NUM = p.PRODUCT_NUM
+            GROUP BY p.BRAND_TY
+        """,
+        "clv": """
+            SELECT h.HSHD_NUM, SUM(t.SPEND) as total_spend
+            FROM households h
+            JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
+            GROUP BY h.HSHD_NUM
+        """,
+        "churn": """
+            SELECT h.HSHD_NUM, MAX(t.PURCHASE_) as last_purchase_date
+            FROM households h
+            JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
+            GROUP BY h.HSHD_NUM
+        """,
+        "socioeconomic": """
+            SELECT h.L, h.AGE_RANGE, AVG(t.SPEND) as avg_spend
+            FROM households h
+            JOIN transactions t ON h.HSHD_NUM = t.HSHD_NUM
+            GROUP BY h.L, h.AGE_RANGE
+        """,
+        "regional": """
+            SELECT t.STORE_R, AVG(t.SPEND) as avg_spend
+            FROM transactions t
+            GROUP BY t.STORE_R
+        """,
+        "demand": """
+            SELECT p.COMMODITY, SUM(t.SPEND) as total_spend
+            FROM transactions t
+            JOIN products p ON t.PRODUCT_NUM = p.PRODUCT_NUM
+            GROUP BY p.COMMODITY
+        """
+    }
+
+    visualizations_data = {}
+    with db.session.connection() as conn:
+        for key, query in queries.items():
+            result = conn.execute(text(query))
+            visualizations_data[key] = [dict(row) for row in result.mappings()]
+
+    return jsonify(visualizations_data)
+
+@routes.route("/dashboard_progress")
+@require_cookie
+def dashboard_progress():
+    def generate():
+        progress_steps = [
+            "engagement", "demographics", "segmentation", "loyalty",
+            "basket", "seasonal", "brand", "clv",
+            "churn", "socioeconomic", "regional", "demand"
+        ]
+        total_steps = len(progress_steps)
+
+        for i, step in enumerate(progress_steps):
+            # Simulate query execution time
+            time.sleep(0.5)  # Replace with actual query execution if needed
+            progress = int(((i + 1) / total_steps) * 100)
+            yield f"data: {progress}\n\n"
+
+    return Response(generate(), content_type="text/event-stream")
 
 @routes.route("/reload_data")
 def reload_data():

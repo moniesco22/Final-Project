@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from sqlalchemy.engine import URL
@@ -8,7 +8,12 @@ from models import db
 from routes import routes
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder='Create')
+
+# Serve static files from the 'Create' directory
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(app.static_folder, filename)
 
 # Load environment variables
 load_dotenv()
